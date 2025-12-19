@@ -1,0 +1,59 @@
+{
+  "settings": {
+    "number_of_shards": 6,
+    "number_of_replicas": 1,
+    "analysis": {
+      "analyzer": {
+        "subject_analyzer": {
+          "tokenizer": "standard",
+          "filter": ["lowercase", "asciifolding", "edge_ngram_filter"]
+        },
+        "body_analyzer": {
+          "tokenizer": "standard",
+          "filter": ["lowercase", "stop", "kstem"]
+        },
+        "keyword_ngram": {
+          "tokenizer": "keyword",
+          "filter": ["lowercase", "edge_ngram_filter"]
+        }
+      },
+      "filter": {
+        "edge_ngram_filter": {
+          "type": "edge_ngram",
+          "min_gram": 2,
+          "max_gram": 25
+        }
+      }
+    }
+  },
+  "mappings": {
+    "dynamic": "strict",
+    "properties": {
+      "email_id": {"type": "keyword"},
+      "message_id": {"type": "keyword"},
+      "department_path": {"type": "keyword"},
+      "mailbox": {"type": "keyword"},
+      "sent_at": {"type": "date"},
+      "received_at": {"type": "date"},
+      "subject": {
+        "type": "text",
+        "analyzer": "subject_analyzer",
+        "fields": {"keyword": {"type": "keyword"}}
+      },
+      "body_text": {"type": "text", "analyzer": "body_analyzer"},
+      "body_html": {"type": "text", "analyzer": "body_analyzer"},
+      "participants": {"type": "keyword"},
+      "participants_ngram": {"type": "text", "analyzer": "keyword_ngram"},
+      "attachments": {
+        "type": "nested",
+        "properties": {
+          "filename": {"type": "text", "analyzer": "keyword_ngram"},
+          "mime_type": {"type": "keyword"}
+        }
+      },
+      "sha256": {"type": "keyword"},
+      "immutable_flag": {"type": "boolean"},
+      "access_tags": {"type": "keyword"}
+    }
+  }
+}

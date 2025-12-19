@@ -1,0 +1,97 @@
+version: "3.9"
+services:
+  web:
+    build: .
+    command: ["/app/scripts/entrypoint.sh", "web"]
+    env_file: .env
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      elasticsearch:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    volumes:
+      - .:/app
+
+  celery_worker:
+    build: .
+    command: ["/app/scripts/entrypoint.sh", "celery-worker"]
+    env_file: .env
+    depends_on:
+      redis:
+        condition: service_started
+      db:
+        condition: service_healthy
+    volumes:
+      - .:/app
+
+  celery_beat:
+    build: .
+    command: ["/app/scripts/entrypoint.sh", "celery-beat"]
+    env_file: .env
+    depends_on:
+      redis:
+        condition: service_started
+    volumes:
+      - .:/app
+
+  db:
+    image: mysql:8.0
+    command: ["mysqld", "--default-authentication-plugin=mysql_native_password", "--innodb_flush_log_at_trx_commit=1", "--log-bin=mysql-bin", "--binlog_format=ROW"]
+    environment:
+      MYSQL_DATABASE: mail_archive
+      MYSQL_USER: mail_archive
+      MYSQL_PASSWORD: mail_archive
+      MYSQL_ROOT_PASSWORD: rootpassword
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-pmail_archive"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - db_data:/var/lib/mysql
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.13.0
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms1g -Xmx1g
+    ports:
+      - "9200:9200"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9200/_cluster/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+
+  minio:
+    image: minio/minio:latest
+    environment:
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: minio123
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+
+volumes:
+  db_data:
+  es_data:
+  minio_data:
